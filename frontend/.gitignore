@@ -3,7 +3,7 @@ node_modules/
 .pnp
 .pnp.js
 
-# Testings
+# Testing
 coverage/
 *.lcov
 
@@ -42,3 +42,7 @@ Thumbs.db
 
 # Misc
 *.log
+
+# IMPORTANT: Do NOT ignore src/lib/ - contains API client
+!src/lib/
+!src/lib/**/*
