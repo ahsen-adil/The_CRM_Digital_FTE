@@ -1,0 +1,121 @@
+# Kafka Cluster Template
+# Customize for your environment: dev, staging, prod
+#
+# Usage:
+#   1. Copy this file
+#   2. Set metadata.name and namespace
+#   3. Adjust replicas and resources for environment
+#   4. Apply: kubectl apply -f kafka-cluster.yaml
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: ${CLUSTER_NAME:-my-cluster}
+  namespace: ${NAMESPACE:-kafka}
+spec:
+  kafka:
+    version: 4.1.1
+    metadataVersion: 4.1-IV0
+
+    listeners:
+      # Internal plain (dev only)
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+
+      # Internal TLS (staging/prod)
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+        authentication:
+          type: scram-sha-512  # or: tls for mTLS
+
+    config:
+      # Replication (adjust for dev: 1, prod: 3)
+      offsets.topic.replication.factor: 3
+      transaction.state.log.replication.factor: 3
+      transaction.state.log.min.isr: 2
+      default.replication.factor: 3
+      min.insync.replicas: 2
+
+      # Topics
+      auto.create.topics.enable: false
+      num.partitions: 12
+
+      # Retention
+      log.retention.hours: 168  # 7 days
+
+    # Metrics (uncomment for monitoring)
+    # metricsConfig:
+    #   type: jmxPrometheusExporter
+    #   valueFrom:
+    #     configMapKeyRef:
+    #       name: kafka-metrics
+    #       key: kafka-metrics-config.yml
+
+  # Entity Operator for topic/user management
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}
+
+  # Kafka Exporter for consumer lag metrics
+  # kafkaExporter:
+  #   topicRegex: ".*"
+  #   groupRegex: ".*"
+
+---
+# Node Pool: Controllers (KRaft metadata)
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: controllers
+  labels:
+    strimzi.io/cluster: ${CLUSTER_NAME:-my-cluster}
+spec:
+  replicas: 3  # Always 3 for quorum
+  roles:
+    - controller
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 10Gi
+        class: standard  # Use your storage class
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: 500m
+    limits:
+      memory: 4Gi
+      cpu: 1
+
+---
+# Node Pool: Brokers (data)
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: brokers
+  labels:
+    strimzi.io/cluster: ${CLUSTER_NAME:-my-cluster}
+spec:
+  replicas: 3  # Adjust: dev=1, staging=3, prod=5+
+  roles:
+    - broker
+  storage:
+    type: jbod
+    volumes:
+      - id: 0
+        type: persistent-claim
+        size: 100Gi  # Adjust for data volume
+        class: fast-ssd  # Use fast storage
+  resources:
+    requests:
+      memory: 4Gi
+      cpu: 1
+    limits:
+      memory: 8Gi
+      cpu: 2

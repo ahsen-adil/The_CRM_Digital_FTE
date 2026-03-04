@@ -1,0 +1,48 @@
+# Customer Success Digital FTE - Requirements
+
+## Stage 1: Incubation (Hours 1-16)
+
+### Python Dependencies
+```
+mcp>=0.1.0  # Model Context Protocol server
+python-dotenv>=1.0.0  # Environment variables
+```
+
+### Built-in Libraries (No Installation Required)
+- `smtplib` - Email sending
+- `imaplib` - Email receiving
+- `email` - Email parsing
+- `json` - JSON handling
+- `asyncio` - Async operations
+
+## Stage 2: Production (Hours 16-48+)
+
+See `production/requirements.txt` for full list.
+
+### Key Production Dependencies
+- **OpenAI Agents SDK** - AI agent framework
+- **FastAPI** - Web framework for APIs and webhooks
+- **asyncpg** - PostgreSQL async driver
+- **confluent-kafka** - Kafka messaging
+- **transformers** - Sentiment analysis
+- **pytest** - Testing framework
+
+## Installation
+
+### Stage 1 (Incubation)
+```bash
+pip install mcp python-dotenv
+```
+
+### Stage 2 (Production)
+```bash
+cd production
+pip install -r requirements.txt
+```
+
+## Optional: Docker Compose (Local Development)
+
+For PostgreSQL, Kafka, and Zookeeper:
+```bash
+docker-compose up -d
+```

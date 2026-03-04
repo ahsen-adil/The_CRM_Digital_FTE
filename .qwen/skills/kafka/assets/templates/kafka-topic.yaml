@@ -1,0 +1,53 @@
+# Kafka Topic Template
+#
+# Usage:
+#   1. Copy this file
+#   2. Set metadata.name following naming convention: <domain>.<entity>.<event>
+#   3. Adjust partitions and config
+#   4. Apply: kubectl apply -f kafka-topic.yaml
+
+---
+# Standard Event Topic
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaTopic
+metadata:
+  name: ${TOPIC_NAME:-orders.order.created}
+  labels:
+    strimzi.io/cluster: ${CLUSTER_NAME:-my-cluster}
+spec:
+  partitions: 12          # Match expected consumer parallelism
+  replicas: 3             # Match broker count for HA
+  config:
+    # Retention
+    retention.ms: "604800000"        # 7 days
+    retention.bytes: "-1"            # No size limit
+
+    # Durability
+    min.insync.replicas: "2"         # Require 2 replicas for writes
+
+    # Cleanup
+    cleanup.policy: "delete"         # or: compact, compact,delete
+
+    # Segments
+    segment.bytes: "1073741824"      # 1GB segments
+    segment.ms: "604800000"          # 7 days max segment age
+
+    # Messages
+    max.message.bytes: "1048576"     # 1MB max message
+
+---
+# Compacted Topic (for state/changelog)
+# apiVersion: kafka.strimzi.io/v1
+# kind: KafkaTopic
+# metadata:
+#   name: user-profiles
+#   labels:
+#     strimzi.io/cluster: ${CLUSTER_NAME:-my-cluster}
+# spec:
+#   partitions: 12
+#   replicas: 3
+#   config:
+#     cleanup.policy: "compact"
+#     min.cleanable.dirty.ratio: "0.5"
+#     delete.retention.ms: "86400000"   # 1 day tombstone retention
+#     min.insync.replicas: "2"

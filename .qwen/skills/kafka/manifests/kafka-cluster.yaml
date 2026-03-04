@@ -1,0 +1,76 @@
+# Kafka Cluster - KRaft Mode (No ZooKeeper)
+# Strimzi 0.49+ with Kafka 4.x
+#
+# Resource Profile: MINIMAL (8GB Mac/PC)
+# - Docker Desktop: 5GB RAM, 4 CPUs, 1GB swap
+# - For 16GB+ machines, see SKILL.md for Standard profile
+#
+# Usage:
+#   kubectl apply -f kafka-cluster.yaml -n kafka
+#
+# Verify:
+#   kubectl get kafka dev-cluster -n kafka
+#   kubectl wait kafka/dev-cluster --for=condition=Ready --timeout=300s -n kafka
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: dual-role
+  labels:
+    strimzi.io/cluster: dev-cluster
+spec:
+  replicas: 1
+  roles:
+    - controller
+    - broker
+  storage:
+    type: ephemeral
+  resources:
+    requests:
+      memory: 512Mi    # Minimal profile for 8GB machines
+      cpu: 200m
+    limits:
+      memory: 1Gi      # Increase to 2Gi for 16GB+ machines
+      cpu: 500m
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: dev-cluster
+  annotations:
+    strimzi.io/node-pools: enabled
+    strimzi.io/kraft: enabled
+spec:
+  kafka:
+    version: 4.1.1
+    metadataVersion: 4.1-IV0
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      # Local development: connect from host machine without port-forward
+      - name: external
+        port: 9094
+        type: nodeport
+        tls: false
+        configuration:
+          bootstrap:
+            nodePort: 30092
+          brokers:
+            - broker: 0
+              nodePort: 30093
+              advertisedHost: localhost
+              advertisedPort: 30093
+    config:
+      offsets.topic.replication.factor: 1
+      transaction.state.log.replication.factor: 1
+      transaction.state.log.min.isr: 1
+      default.replication.factor: 1
+      min.insync.replicas: 1
+      auto.create.topics.enable: false
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}

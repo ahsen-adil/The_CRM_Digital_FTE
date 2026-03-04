@@ -1,0 +1,23 @@
+# Docker
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+.git
+.gitignore
+.dockerignore
+Dockerfile*
+docker-compose*.yml
+*.log
+.env*
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+coverage/
+.pytest_cache/

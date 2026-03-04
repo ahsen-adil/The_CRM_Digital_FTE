@@ -1,0 +1,541 @@
+openapi: 3.1.0
+info:
+  title: Customer Success Digital FTE API
+  description: API for Customer Success Digital FTE - Multi-channel customer support AI agent
+  version: 1.0.0
+  contact:
+    name: Support Team
+    email: support@example.com
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development server
+  - url: https://api.example.com/api/v1
+    description: Production server
+
+tags:
+  - name: Tickets
+    description: Support ticket management
+  - name: Customers
+    description: Customer profile and history
+  - name: Webhooks
+    description: Channel webhook handlers
+  - name: Web Form
+    description: Web support form endpoint
+  - name: Metrics
+    description: System metrics and monitoring
+
+paths:
+  /tickets:
+    post:
+      summary: Create a new support ticket
+      operationId: createTicket
+      tags:
+        - Tickets
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTicketRequest'
+      responses:
+        '201':
+          description: Ticket created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    get:
+      summary: List all tickets
+      operationId: listTickets
+      tags:
+        - Tickets
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, in_progress, pending_customer, escalated, resolved, closed]
+        - name: channel
+          in: query
+          schema:
+            type: string
+            enum: [email, whatsapp, web_form]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: List of tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TicketResponse'
+
+  /tickets/{ticket_id}:
+    get:
+      summary: Get ticket by ID
+      operationId: getTicketById
+      tags:
+        - Tickets
+      parameters:
+        - name: ticket_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ticket details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TicketResponse'
+        '404':
+          description: Ticket not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /customers/{email}/history:
+    get:
+      summary: Get customer conversation history
+      operationId: getCustomerHistory
+      tags:
+        - Customers
+      parameters:
+        - name: email
+          in: path
+          required: true
+          schema:
+            type: string
+            format: email
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Customer conversation history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerHistoryResponse'
+        '404':
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /webhooks/whatsapp:
+    post:
+      summary: WhatsApp webhook handler
+      operationId: whatsappWebhook
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WhatsAppWebhookPayload'
+      responses:
+        '200':
+          description: Webhook received successfully
+        '401':
+          description: Unauthorized - invalid signature
+        '400':
+          description: Invalid payload
+
+  /webhooks/email:
+    post:
+      summary: Email webhook handler (alternative to IMAP polling)
+      operationId: emailWebhook
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailWebhookPayload'
+      responses:
+        '200':
+          description: Webhook received successfully
+        '401':
+          description: Unauthorized - invalid signature
+        '400':
+          description: Invalid payload
+
+  /support:
+    post:
+      summary: Submit support inquiry via web form
+      operationId: submitWebForm
+      tags:
+        - Web Form
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebFormRequest'
+      responses:
+        '201':
+          description: Support inquiry submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebFormResponse'
+        '400':
+          description: Invalid form data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /metrics:
+    get:
+      summary: Get system performance metrics
+      operationId: getMetrics
+      tags:
+        - Metrics
+      responses:
+        '200':
+          description: System metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+
+components:
+  schemas:
+    CreateTicketRequest:
+      type: object
+      required:
+        - customer_email
+        - channel
+        - description
+      properties:
+        customer_email:
+          type: string
+          format: email
+        channel:
+          type: string
+          enum: [email, whatsapp, web_form]
+        subject:
+          type: string
+          maxLength: 500
+        description:
+          type: string
+          minLength: 1
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+          default: normal
+        metadata:
+          type: object
+
+    TicketResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        ticket_number:
+          type: string
+          example: TKT-2026-000123
+        customer_id:
+          type: string
+          format: uuid
+        channel:
+          type: string
+          enum: [email, whatsapp, web_form]
+        subject:
+          type: string
+        description:
+          type: string
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+        status:
+          type: string
+          enum: [open, in_progress, pending_customer, escalated, resolved, closed]
+        sentiment_score:
+          type: number
+          format: float
+          minimum: -1.0
+          maximum: 1.0
+        created_at:
+          type: string
+          format: date-time
+        first_response_at:
+          type: string
+          format: date-time
+        resolved_at:
+          type: string
+          format: date-time
+
+    CustomerHistoryResponse:
+      type: object
+      properties:
+        customer:
+          $ref: '#/components/schemas/Customer'
+        conversations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conversation'
+        tickets:
+          type: array
+          items:
+            $ref: '#/components/schemas/TicketResponse'
+        total_tickets:
+          type: integer
+        average_sentiment:
+          type: number
+          format: float
+
+    Customer:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        phone_number:
+          type: string
+        name:
+          type: string
+        total_tickets:
+          type: integer
+        average_sentiment:
+          type: number
+          format: float
+        preferred_channel:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        topic:
+          type: string
+        status:
+          type: string
+          enum: [open, pending, resolved, escalated, closed]
+        channel_history:
+          type: array
+          items:
+            type: string
+        resolution_status:
+          type: string
+          enum: [unresolved, resolved, escalated]
+        opened_at:
+          type: string
+          format: date-time
+        last_activity_at:
+          type: string
+          format: date-time
+
+    WhatsAppWebhookPayload:
+      type: object
+      required:
+        - object
+        - entry
+      properties:
+        object:
+          type: string
+          enum: [whatsapp_business_account]
+        entry:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              changes:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    value:
+                      type: object
+                      properties:
+                        messaging_product:
+                          type: string
+                        metadata:
+                          type: object
+                        messages:
+                          type: array
+                          items:
+                            type: object
+                        statuses:
+                          type: array
+                          items:
+                            type: object
+
+    EmailWebhookPayload:
+      type: object
+      required:
+        - from
+        - to
+        - subject
+        - body
+      properties:
+        from:
+          type: string
+          format: email
+        to:
+          type: string
+          format: email
+        subject:
+          type: string
+        body:
+          type: string
+        html_body:
+          type: string
+        in_reply_to:
+          type: string
+        references:
+          type: array
+          items:
+            type: string
+        attachments:
+          type: array
+          items:
+            type: object
+
+    WebFormRequest:
+      type: object
+      required:
+        - email
+        - message
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          maxLength: 255
+        subject:
+          type: string
+          maxLength: 500
+        message:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+        category:
+          type: string
+          enum: [technical, billing, sales, general]
+
+    WebFormResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        ticket_number:
+          type: string
+          example: TKT-2026-000123
+        message:
+          type: string
+        estimated_response_time:
+          type: string
+          example: "30 seconds"
+
+    MetricsResponse:
+      type: object
+      properties:
+        total_tickets:
+          type: integer
+        open_tickets:
+          type: integer
+        avg_response_time_seconds:
+          type: number
+          format: float
+        ai_resolution_rate:
+          type: number
+          format: float
+          description: "Percentage of tickets resolved by AI (0.0-1.0)"
+        escalation_rate:
+          type: number
+          format: float
+          description: "Percentage of tickets escalated (0.0-1.0)"
+        avg_sentiment:
+          type: number
+          format: float
+        channel_breakdown:
+          type: object
+          properties:
+            email:
+              type: integer
+            whatsapp:
+              type: integer
+            web_form:
+              type: integer
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
